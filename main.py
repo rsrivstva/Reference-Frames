@@ -11,7 +11,9 @@ def main():
 
     initial_velocity = np.array([0, 7.72, 5])
     integration_time = 24*60*60
-    integration_steps = 1000                                                                   
+    integration_steps = 1000      
+
+    theta = 90                                                             
 
     trajectory, times = keplerian_propagator(initial_position, initial_velocity, integration_time, integration_steps)
 
@@ -42,7 +44,6 @@ def keplerian_propagator(init_r, init_v, tof, steps):
     init_state = np.concatenate((init_r,init_v))
     # Do the integration
     sol = solve_ivp(fun = lambda t,x:keplerian_eoms(t,x), t_span=tspan, y0=init_state, method="DOP853", t_eval=tof_array, rtol = 1e-12, atol = 1e-12)
-
     # Return everything
     return sol.y, sol.t
 
@@ -57,8 +58,12 @@ def keplerian_eoms(t, state):
     r_dot = np.array([vx, vy, vz])
     
     # Define r
+    r = (x**2 + y**2 + x**2)**.5
     
     # Solve for the acceleration
+    ax = -earth_nu*x/(r**3)
+    ay = -earth_nu*y/(r**3)
+    az = -earth_nu*z/(r**3)
 
     v_dot = np.array([ax, ay, az])
 
