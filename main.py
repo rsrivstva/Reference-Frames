@@ -8,21 +8,30 @@ def main():
     # Main function
     print("Starting Main Function")
     initial_position = np.array([7000,0,0])
-
     initial_velocity = np.array([0, 7.72, 5])
-    integration_time = 24*60*60
-    integration_steps = 1000      
+    integration_time = 24*60*60*180
+    integration_steps = 1000
+
+    sun_mu = 1.327124e11
+
+    earth_position = np.array([149.6e6,0,0])
+    earth_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(earth_position)), 0])
+
+    mars_position = np.array([228e6,0,0])
+    mars_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(mars_position)), 0])
 
     theta = 90                                                             
 
-    trajectory, times = keplerian_propagator(initial_position, initial_velocity, integration_time, integration_steps)
+    earth_trajectory, times = keplerian_propagator(earth_position, earth_velocity, integration_time, integration_steps)
+    mars_trajectory, times = keplerian_propagator(mars_position, mars_velocity, integration_time, integration_steps)
 
     # Plot it
     fig = plt.figure()
     # Define axes in that figure
     ax = plt.axes(projection='3d',computed_zorder=False)
     # Plot x, y, z
-    ax.plot(trajectory[0],trajectory[1],trajectory[2],zorder=5)
+    ax.plot(earth_trajectory[0],earth_trajectory[1],earth_trajectory[2],zorder=5)
+    ax.plot(mars_trajectory[0],mars_trajectory[1],mars_trajectory[2],zorder=5)
     plt.title("All Orbits")
     ax.set_xlabel("X-axis (km)")
     ax.set_ylabel("Y-axis (km)")
@@ -52,18 +61,18 @@ def keplerian_eoms(t, state):
     """
     Equation of motion for 2body orbits
     """
-    earth_nu = 398600.441500000
+    sun_mu = 1.327124e11
     # Extract values from init
     x, y, z, vx, vy, vz = state
     r_dot = np.array([vx, vy, vz])
     
     # Define r
-    r = (x**2 + y**2 + x**2)**.5
+    r = (x**2 + y**2 + z**2)**.5
     
     # Solve for the acceleration
-    ax = -earth_nu*x/(r**3)
-    ay = -earth_nu*y/(r**3)
-    az = -earth_nu*z/(r**3)
+    ax = -sun_mu*x/(r**3)
+    ay = -sun_mu*y/(r**3)
+    az = -sun_mu*z/(r**3)
 
     v_dot = np.array([ax, ay, az])
 
