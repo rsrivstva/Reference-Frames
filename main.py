@@ -9,7 +9,7 @@ def main():
     print("Starting Main Function")
     initial_position = np.array([7000,0,0])
     initial_velocity = np.array([0, 7.72, 5])
-    integration_time = 24*60*60*180
+    integration_time = 24*60*60*365*4
     integration_steps = 1000
 
     sun_mu = 1.327124e11
@@ -41,6 +41,23 @@ def main():
     ax.zaxis.set_tick_params(labelsize=7)
     ax.set_aspect('equal', adjustable='box')
     plt.show()
+
+    fig = plt.figure()
+    # Define axes in that figure
+    ax = plt.axes()
+    # Plot x, y, z
+    ax.scatter(times/(60*60*24),earth_trajectory[0]-mars_trajectory[0],zorder=5, label='Relative X')
+    ax.scatter(times/(60*60*24),earth_trajectory[1]-mars_trajectory[1],zorder=5, label='Relative Y')
+    ax.scatter(times/(60*60*24),earth_trajectory[2]-mars_trajectory[2],zorder=5, label='Relative Z')
+    plt.title("All Orbits")
+    ax.set_xlabel("Times [days]")
+    ax.set_ylabel("Relative Distance (km)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+
+
+
 
 def keplerian_propagator(init_r, init_v, tof, steps):
     """
