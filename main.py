@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import spiceypy as spice
 from scipy.integrate import solve_ivp
 
 def main():
@@ -21,9 +22,20 @@ def main():
     mars_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(mars_position)), 0])
 
     theta = 90                                                             
-
+    init_epic="Jan 1, 2000"
     earth_trajectory, times = keplerian_propagator(earth_position, earth_velocity, integration_time, integration_steps)
     mars_trajectory, times = keplerian_propagator(mars_position, mars_velocity, integration_time, integration_steps)
+
+    init_ephem()
+    et = spice.str2et(init_epic)
+
+    # Steps for rotating to J2000
+    # 1. For each Epoch (time + initial Epoch), get distance to Earth in J2000 frame
+    # # Get vector from S to E
+    # rse, _ = spice.spkpos('Earth', current_epic, 'J2000', 'LT', 'Sun')
+    # 2. Get rotation matrix from our Sun inertial frame to J2000
+    # 3. For every measurement, multiply that rotation matrix by the Earth-Mars vector
+    # Final result is Earth -> Mars vector in the J2000 frame
 
     # Plot it
     fig = plt.figure()
@@ -97,6 +109,15 @@ def keplerian_eoms(t, state):
 
     return dx
 
+
+def init_ephem(self):
+        """
+        Initialize the ephemeris files for EMS
+        """
+        # This is for the Cassini example, comment out later
+        #spice.furnsh("./Ephemeris/cassMetaK.txt")
+        # Furnish the kernals we actually need
+        spice.furnsh("./Ephemeris/ephemMeta.txt")
 
 if __name__ == '__main__':
     main()
