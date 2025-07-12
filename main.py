@@ -28,14 +28,22 @@ def main():
 
     init_ephem()
     et = spice.str2et(init_epic)
-
     # Steps for rotating to J2000
     # 1. For each Epoch (time + initial Epoch), get distance to Earth in J2000 frame
     # # Get vector from S to E
-    # rse, _ = spice.spkpos('Earth', current_epic, 'J2000', 'LT', 'Sun')
-    # 2. Get rotation matrix from our Sun inertial frame to J2000
-    # 3. For every measurement, multiply that rotation matrix by the Earth-Mars vector
-    # Final result is Earth -> Mars vector in the J2000 frame
+    # Rotate every state along trajectory
+    em_j2000 = np.zeros((len(times), 3))
+    for i in range(len(times)):
+        current_epoch = et + times[i]
+        rse, _ = spice.spkpos('Earth', current_epoch, 'J2000', 'LT', 'Sun')
+        # 2. Get rotation matrix from our Sun inertial frame to J2000
+        rse_sun_centered = earth_trajectory[0:3,i]
+        rot_mat = rotation_matrix_from_vectors(rse_sun_centered, rse)
+        # 3. For every measurement, multiply that rotation matrix by the Earth-Mars vector
+        em_sun_centered = mars_trajectory[0:3,i] - earth_trajectory[0:3,i]
+        em_j2000[i, :] = rot_mat @ em_sun_centered
+        # Final result is Earth -> Mars vector in the J2000 frame
+    
 
     # Plot it
     fig = plt.figure()
@@ -58,9 +66,23 @@ def main():
     # Define axes in that figure
     ax = plt.axes()
     # Plot x, y, z
-    ax.scatter(times/(60*60*24),earth_trajectory[0]-mars_trajectory[0],zorder=5, label='Relative X')
-    ax.scatter(times/(60*60*24),earth_trajectory[1]-mars_trajectory[1],zorder=5, label='Relative Y')
-    ax.scatter(times/(60*60*24),earth_trajectory[2]-mars_trajectory[2],zorder=5, label='Relative Z')
+    ax.scatter(times/(60*60*24),em_j2000[:,0],zorder=5, label='Relative X in J2000')
+    ax.scatter(times/(60*60*24),em_j2000[:,1],zorder=5, label='Relative Y in J2000')
+    ax.scatter(times/(60*60*24),em_j2000[:,2],zorder=5, label='Relative Z in J2000')
+    plt.title("All Orbits")
+    ax.set_xlabel("Times [days]")
+    ax.set_ylabel("Relative Distance (km)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+
+    fig = plt.figure()
+    # Define axes in that figure
+    ax = plt.axes()
+    # Plot x, y, z
+    ax.scatter(times/(60*60*24),-earth_trajectory[0]+mars_trajectory[0],zorder=5, label='Relative X')
+    ax.scatter(times/(60*60*24),-earth_trajectory[1]+mars_trajectory[1],zorder=5, label='Relative Y')
+    ax.scatter(times/(60*60*24),-earth_trajectory[2]+mars_trajectory[2],zorder=5, label='Relative Z')
     plt.title("All Orbits")
     ax.set_xlabel("Times [days]")
     ax.set_ylabel("Relative Distance (km)")
@@ -109,8 +131,21 @@ def keplerian_eoms(t, state):
 
     return dx
 
+def rotation_matrix_from_vectors(vec1, vec2):
+    """ Find the rotation matrix that aligns vec1 to vec2
+    :param vec1: A 3d "source" vector
+    :param vec2: A 3d "destination" vector
+    :return mat: A transform matrix (3x3) which when applied to vec1, aligns it with vec2.
+    """
+    a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
+    v = np.cross(a, b)
+    c = np.dot(a, b)
+    s = np.linalg.norm(v)
+    kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s ** 2))
+    return rotation_matrix
 
-def init_ephem(self):
+def init_ephem():
         """
         Initialize the ephemeris files for EMS
         """
