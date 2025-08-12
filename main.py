@@ -10,7 +10,7 @@ def main():
     print("Starting Main Function")
     initial_position = np.array([7000,0,0])
     initial_velocity = np.array([0, 7.72, 5])
-    integration_time = 24*60*60*1
+    integration_time = 24*60*60*180
     integration_steps = 1000
 
     sun_mu = 1.327124e11
@@ -91,22 +91,19 @@ def main():
     ax.scatter(times/(60*60*24),-earth_trajectory[0]+mars_trajectory[0],zorder=5, label='Relative X')
     ax.scatter(times/(60*60*24),-earth_trajectory[1]+mars_trajectory[1],zorder=5, label='Relative Y')
     ax.scatter(times/(60*60*24),-earth_trajectory[2]+mars_trajectory[2],zorder=5, label='Relative Z')
-    plt.title("All Orbits")
-    ax.set_xlim(0, 1)
+    plt.title("All Orbits")  
     ax.set_xlabel("Times [days]")
     ax.set_ylabel("Relative Distance (km)")
     ax.legend()
     ax.grid(True)
     plt.show()
-
-    diff = em_j2000 - earth_centered_mars.T
+    diff = em_j2000 - earth_centered_mars[0:3,:].T
     fig = plt.figure()
     ax = plt.axes()
     ax.scatter(times/(60*60*24), diff[:,0], zorder=5, label='ΔX')
     ax.scatter(times/(60*60*24), diff[:,1], zorder=5, label='ΔY')
     ax.scatter(times/(60*60*24), diff[:,2], zorder=5, label='ΔZ')
-    plt.title("Difference: J2000 - Earth-Centered Sun Frame (1 Day)")
-    ax.set_xlim(0, 1)
+    plt.title("Difference: J2000 - Earth-Centered Sun Frame (1 Day)") 
     ax.set_xlabel("Time [days from start]")
     ax.set_ylabel("Difference (km)")
     ax.legend()
