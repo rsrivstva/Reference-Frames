@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import spicypy as spice
+import spiceypy as spice
 from scipy.integrate import solve_ivp
 
 def main():
@@ -10,7 +10,7 @@ def main():
     print("Starting Main Function")
     initial_position = np.array([7000,0,0])
     initial_velocity = np.array([0, 7.72, 5])
-    integration_time = 24*60*60*365*4
+    integration_time = 24*60*60*1
     integration_steps = 1000
 
     sun_mu = 1.327124e11
