@@ -12,8 +12,14 @@ def main():
     initial_velocity = np.array([0, 7.72, 5])
     integration_time = 24*60*60*180
     integration_steps = 1000
+    init_epic="Jan 1, 2000"
 
     sun_mu = 1.327124e11
+
+    init_ephem()
+    et = spice.str2et(init_epic)
+
+    rse, _ = spice.spkpos('Earth', et, 'J2000', 'LT', 'Sun')
 
     earth_position = np.array([149.6e6,0,0])
     earth_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(earth_position)), 0])
@@ -22,12 +28,9 @@ def main():
     mars_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(mars_position)), 0])
 
     theta = 90                                                             
-    init_epic="Jan 1, 2000"
     earth_trajectory, times = keplerian_propagator(earth_position, earth_velocity, integration_time, integration_steps)
     mars_trajectory, times = keplerian_propagator(mars_position, mars_velocity, integration_time, integration_steps)
 
-    init_ephem()
-    et = spice.str2et(init_epic)
     # Steps for rotating to J2000
     # 1. For each Epoch (time + initial Epoch), get distance to Earth in J2000 frame
     # # Get vector from S to E
