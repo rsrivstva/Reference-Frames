@@ -2,7 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import spiceypy as spice
+import spicypy as spice
 from scipy.integrate import solve_ivp
 
 def main():
