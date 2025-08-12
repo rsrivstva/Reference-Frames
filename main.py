@@ -50,8 +50,16 @@ def main():
     # Define axes in that figure
     ax = plt.axes(projection='3d',computed_zorder=False)
     # Plot x, y, z
-    ax.plot(earth_trajectory[0],earth_trajectory[1],earth_trajectory[2],zorder=5)
-    ax.plot(mars_trajectory[0],mars_trajectory[1],mars_trajectory[2],zorder=5)
+    #ax.plot(earth_trajectory[0],earth_trajectory[1],earth_trajectory[2],zorder=5)
+    #ax.plot(mars_trajectory[0],mars_trajectory[1],mars_trajectory[2],zorder=5)
+
+    earth_centered_earth = earth_trajectory - earth_trajectory
+    earth_centered_mars = mars_trajectory - earth_trajectory
+
+    ax.plot(earth_centered_earth[0], earth_centered_earth[1], earth_centered_earth[2], zorder=5, label='Earth')
+    ax.plot(earth_centered_mars[0], earth_centered_mars[1], earth_centered_mars[2], zorder=5, label='Mars')
+    ax.legend()
+
     plt.title("All Orbits")
     ax.set_xlabel("X-axis (km)")
     ax.set_ylabel("Y-axis (km)")
@@ -84,13 +92,26 @@ def main():
     ax.scatter(times/(60*60*24),-earth_trajectory[1]+mars_trajectory[1],zorder=5, label='Relative Y')
     ax.scatter(times/(60*60*24),-earth_trajectory[2]+mars_trajectory[2],zorder=5, label='Relative Z')
     plt.title("All Orbits")
+    ax.set_xlim(0, 1)
     ax.set_xlabel("Times [days]")
     ax.set_ylabel("Relative Distance (km)")
     ax.legend()
     ax.grid(True)
     plt.show()
 
-
+    diff = em_j2000 - earth_centered_mars.T
+    fig = plt.figure()
+    ax = plt.axes()
+    ax.scatter(times/(60*60*24), diff[:,0], zorder=5, label='ΔX')
+    ax.scatter(times/(60*60*24), diff[:,1], zorder=5, label='ΔY')
+    ax.scatter(times/(60*60*24), diff[:,2], zorder=5, label='ΔZ')
+    plt.title("Difference: J2000 - Earth-Centered Sun Frame (1 Day)")
+    ax.set_xlim(0, 1)
+    ax.set_xlabel("Time [days from start]")
+    ax.set_ylabel("Difference (km)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
 
 
 def keplerian_propagator(init_r, init_v, tof, steps):
