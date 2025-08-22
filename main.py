@@ -5,6 +5,18 @@ import matplotlib.pyplot as plt
 import spiceypy as spice
 from scipy.integrate import solve_ivp
 
+def rotate_to_rotating_frame(states, times, mu_sun, a_earth):
+    omega = np.sqrt(mu_sun / a_earth**3)
+    rotated_positions = np.zeros((3, len(times)))
+    for i, t in enumerate(times):
+        theta = omega * t  # rotation angle
+        R = np.array([[np.cos(theta), -np.sin(theta), 0],
+                      [np.sin(theta),  np.cos(theta), 0],
+                      [0,              0,             1]])
+        rotated_positions[:, i] = R @ states[0:3, i]
+
+    return rotated_positions
+
 def main():
     # Main function
     print("Starting Main Function")
@@ -15,6 +27,8 @@ def main():
     init_epic="Jan 1, 2000"
 
     sun_mu = 1.327124e11
+    a_earth = 149.6e6
+    theta = 90
 
     init_ephem()
     et = spice.str2et(init_epic)
@@ -23,13 +37,31 @@ def main():
 
     earth_position = np.array([149.6e6,0,0])
     earth_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(earth_position)), 0])
-
     mars_position = np.array([228e6,0,0])
-    mars_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(mars_position)), 0])
-
-    theta = 90                                                             
+    mars_velocity = np.array([0, np.sqrt(sun_mu/np.linalg.norm(mars_position)), 0]) 
+    venus_position = np.array([108.2e6, 0, 0])
+    venus_velocity = np.array([0, np.sqrt(sun_mu / np.linalg.norm(venus_position)), 0]) 
+                                                           
     earth_trajectory, times = keplerian_propagator(earth_position, earth_velocity, integration_time, integration_steps)
     mars_trajectory, times = keplerian_propagator(mars_position, mars_velocity, integration_time, integration_steps)
+    venus_trajectory, _ = keplerian_propagator(venus_position, venus_velocity, integration_time, integration_steps)
+
+    earth_rot = rotate_to_rotating_frame(earth_trajectory, times, sun_mu, a_earth)
+    mars_rot = rotate_to_rotating_frame(mars_trajectory, times, sun_mu, a_earth)
+    venus_rot = rotate_to_rotating_frame(venus_trajectory, times, sun_mu, a_earth)
+
+    fig = plt.figure()
+    ax = plt.axes()
+    ax.plot(earth_rot[0], earth_rot[1], label="Earth (rotating frame)")
+    ax.plot(mars_rot[0], mars_rot[1], label="Mars (rotating frame)")
+    ax.plot(venus_rot[0], venus_rot[1], label="Venus")
+    ax.set_xlabel("X [km]")
+    ax.set_ylabel("Y [km]")
+    ax.set_aspect("equal")
+    ax.autoscale(enable=True, axis='both', tight=True)
+    ax.legend()
+    plt.title("Trajectories in Sun-Earth Rotating Frame")
+    plt.show()
 
     # Steps for rotating to J2000
     # 1. For each Epoch (time + initial Epoch), get distance to Earth in J2000 frame
@@ -46,8 +78,7 @@ def main():
         em_sun_centered = mars_trajectory[0:3,i] - earth_trajectory[0:3,i]
         em_j2000[i, :] = rot_mat @ em_sun_centered
         # Final result is Earth -> Mars vector in the J2000 frame
-    
-
+  
     # Plot it
     fig = plt.figure()
     # Define axes in that figure
@@ -100,6 +131,7 @@ def main():
     ax.legend()
     ax.grid(True)
     plt.show()
+    
     diff = em_j2000 - earth_centered_mars[0:3,:].T
     fig = plt.figure()
     ax = plt.axes()
@@ -112,7 +144,6 @@ def main():
     ax.legend()
     ax.grid(True)
     plt.show()
-
 
 def keplerian_propagator(init_r, init_v, tof, steps):
     """
@@ -127,7 +158,6 @@ def keplerian_propagator(init_r, init_v, tof, steps):
     sol = solve_ivp(fun = lambda t,x:keplerian_eoms(t,x), t_span=tspan, y0=init_state, method="DOP853", t_eval=tof_array, rtol = 1e-12, atol = 1e-12)
     # Return everything
     return sol.y, sol.t
-
 
 def keplerian_eoms(t, state):
     """
@@ -153,18 +183,17 @@ def keplerian_eoms(t, state):
     return dx
 
 def rotation_matrix_from_vectors(vec1, vec2):
-    """ Find the rotation matrix that aligns vec1 to vec2
-    :param vec1: A 3d "source" vector
-    :param vec2: A 3d "destination" vector
-    :return mat: A transform matrix (3x3) which when applied to vec1, aligns it with vec2.
-    """
-    a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
+    """ Find the rotation matrix that aligns vec1 to vec2 :param vec1: 
+    A 3d "source" vector :param vec2: A 3d "destination" vector 
+    :return mat: A transform matrix (3x3) which when applied to vec1, aligns it with vec2. """
+    a, b = (vec1 / np.linalg.norm(vec1)), (vec2 / np.linalg.norm(vec2))
     v = np.cross(a, b)
     c = np.dot(a, b)
-    s = np.linalg.norm(v)
-    kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-    rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s ** 2))
-    return rotation_matrix
+    s = np.linalg.norm(v) 
+    kmat = np.array([[0, -v[2], v[1]],
+                     [v[2], 0, -v[0]],
+                     [-v[1], v[0], 0]])
+    return np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s**2))
 
 def init_ephem():
         """
@@ -174,6 +203,13 @@ def init_ephem():
         #spice.furnsh("./Ephemeris/cassMetaK.txt")
         # Furnish the kernals we actually need
         spice.furnsh("./Ephemeris/ephemMeta.txt")
+
+def get_planet_state(body, epoch, frame="J2000", observer="SUN"):
+    et = spice.str2et(epoch)
+    state, lt = spice.spkezr(body, et, frame, "NONE", observer)
+    pos = np.array(state[:3])
+    vel = np.array(state[3:])
+    return pos, vel, et
 
 if __name__ == '__main__':
     main()
