@@ -6,10 +6,9 @@ import spiceypy as spice
 from scipy.integrate import solve_ivp
 
 def rotate_to_rotating_frame(states, times, mu_sun, a_earth):
-    omega = np.sqrt(mu_sun / a_earth**3)
     rotated_positions = np.zeros((3, len(times)))
     for i, t in enumerate(times):
-        theta = omega * t  # rotation angle
+        theta = 2 * np.pi * t / (60*60*24) # rotation angle
         R = np.array([[np.cos(theta), -np.sin(theta), 0],
                       [np.sin(theta),  np.cos(theta), 0],
                       [0,              0,             1]])
@@ -22,7 +21,7 @@ def main():
     print("Starting Main Function")
     initial_position = np.array([7000,0,0])
     initial_velocity = np.array([0, 7.72, 5])
-    integration_time = 24*60*60*180
+    integration_time = 24*60*60*30
     integration_steps = 1000
     init_epic="Jan 1, 2000"
 
@@ -46,13 +45,11 @@ def main():
     mars_trajectory, times = keplerian_propagator(mars_position, mars_velocity, integration_time, integration_steps)
     venus_trajectory, _ = keplerian_propagator(venus_position, venus_velocity, integration_time, integration_steps)
 
-    earth_rot = rotate_to_rotating_frame(earth_trajectory, times, sun_mu, a_earth)
-    mars_rot = rotate_to_rotating_frame(mars_trajectory, times, sun_mu, a_earth)
-    venus_rot = rotate_to_rotating_frame(venus_trajectory, times, sun_mu, a_earth)
+    mars_rot = rotate_to_rotating_frame(mars_trajectory - earth_trajectory, times, sun_mu, a_earth)
+    venus_rot = rotate_to_rotating_frame(venus_trajectory - earth_trajectory, times, sun_mu, a_earth)
 
     fig = plt.figure()
     ax = plt.axes()
-    ax.plot(earth_rot[0], earth_rot[1], label="Earth (rotating frame)")
     ax.plot(mars_rot[0], mars_rot[1], label="Mars (rotating frame)")
     ax.plot(venus_rot[0], venus_rot[1], label="Venus")
     ax.set_xlabel("X [km]")
@@ -60,7 +57,7 @@ def main():
     ax.set_aspect("equal")
     ax.autoscale(enable=True, axis='both', tight=True)
     ax.legend()
-    plt.title("Trajectories in Sun-Earth Rotating Frame")
+    plt.title("Earth-Centered Rotating Frame")
     plt.show()
 
     # Steps for rotating to J2000
@@ -68,6 +65,7 @@ def main():
     # # Get vector from S to E
     # Rotate every state along trajectory
     em_j2000 = np.zeros((len(times), 3))
+    ev_j2000 = np.zeros((len(times), 3))
     for i in range(len(times)):
         current_epoch = et + times[i]
         rse, _ = spice.spkpos('Earth', current_epoch, 'J2000', 'LT', 'Sun')
@@ -76,32 +74,34 @@ def main():
         rot_mat = rotation_matrix_from_vectors(rse_sun_centered, rse)
         # 3. For every measurement, multiply that rotation matrix by the Earth-Mars vector
         em_sun_centered = mars_trajectory[0:3,i] - earth_trajectory[0:3,i]
+        ev_sun_centered = venus_trajectory[0:3,i] - earth_trajectory[0:3,i]
         em_j2000[i, :] = rot_mat @ em_sun_centered
+        ev_j2000[i, :] = rot_mat @ ev_sun_centered
         # Final result is Earth -> Mars vector in the J2000 frame
   
     # Plot it
     fig = plt.figure()
     # Define axes in that figure
-    ax = plt.axes(projection='3d',computed_zorder=False)
+    ax = plt.axes()
     # Plot x, y, z
     #ax.plot(earth_trajectory[0],earth_trajectory[1],earth_trajectory[2],zorder=5)
     #ax.plot(mars_trajectory[0],mars_trajectory[1],mars_trajectory[2],zorder=5)
 
     earth_centered_earth = earth_trajectory - earth_trajectory
     earth_centered_mars = mars_trajectory - earth_trajectory
+    earth_centered_venus = venus_trajectory - earth_trajectory
 
-    ax.plot(earth_centered_earth[0], earth_centered_earth[1], earth_centered_earth[2], zorder=5, label='Earth')
-    ax.plot(earth_centered_mars[0], earth_centered_mars[1], earth_centered_mars[2], zorder=5, label='Mars')
+    ax.plot(earth_centered_earth[0], earth_centered_earth[1], zorder=5, label='Earth')
+    ax.plot(earth_centered_mars[0], earth_centered_mars[1], zorder=5, label='Mars')
+    ax.plot(earth_centered_venus[0], earth_centered_venus[1], zorder=5, label='Venus')
     ax.legend()
 
     plt.title("All Orbits")
     ax.set_xlabel("X-axis (km)")
     ax.set_ylabel("Y-axis (km)")
-    ax.set_zlabel("Z-axis (km)")
     ax.xaxis.set_tick_params(labelsize=7)
     ax.yaxis.set_tick_params(labelsize=7)
-    ax.zaxis.set_tick_params(labelsize=7)
-    ax.set_aspect('equal', adjustable='box')
+    #ax.set_aspect('equal', adjustable='box')
     plt.show()
 
     fig = plt.figure()
@@ -111,6 +111,10 @@ def main():
     ax.scatter(times/(60*60*24),em_j2000[:,0],zorder=5, label='Relative X in J2000')
     ax.scatter(times/(60*60*24),em_j2000[:,1],zorder=5, label='Relative Y in J2000')
     ax.scatter(times/(60*60*24),em_j2000[:,2],zorder=5, label='Relative Z in J2000')
+
+    ax.scatter(times/(60*60*24),ev_j2000[:,0],zorder=5, label='Relative X in J2000')
+    ax.scatter(times/(60*60*24),ev_j2000[:,1],zorder=5, label='Relative Y in J2000')
+    ax.scatter(times/(60*60*24),ev_j2000[:,2],zorder=5, label='Relative Z in J2000')
     plt.title("All Orbits")
     ax.set_xlabel("Times [days]")
     ax.set_ylabel("Relative Distance (km)")
@@ -125,6 +129,10 @@ def main():
     ax.scatter(times/(60*60*24),-earth_trajectory[0]+mars_trajectory[0],zorder=5, label='Relative X')
     ax.scatter(times/(60*60*24),-earth_trajectory[1]+mars_trajectory[1],zorder=5, label='Relative Y')
     ax.scatter(times/(60*60*24),-earth_trajectory[2]+mars_trajectory[2],zorder=5, label='Relative Z')
+
+    ax.scatter(times/(60*60*24),-earth_trajectory[0]+venus_trajectory[0],zorder=5, label='Relative X')
+    ax.scatter(times/(60*60*24),-earth_trajectory[1]+venus_trajectory[1],zorder=5, label='Relative Y')
+    ax.scatter(times/(60*60*24),-earth_trajectory[2]+venus_trajectory[2],zorder=5, label='Relative Z')
     plt.title("All Orbits")  
     ax.set_xlabel("Times [days]")
     ax.set_ylabel("Relative Distance (km)")
@@ -133,11 +141,16 @@ def main():
     plt.show()
     
     diff = em_j2000 - earth_centered_mars[0:3,:].T
+    diff2 = ev_j2000 - earth_centered_venus[0:3,:].T
     fig = plt.figure()
     ax = plt.axes()
     ax.scatter(times/(60*60*24), diff[:,0], zorder=5, label='ΔX')
     ax.scatter(times/(60*60*24), diff[:,1], zorder=5, label='ΔY')
     ax.scatter(times/(60*60*24), diff[:,2], zorder=5, label='ΔZ')
+
+    ax.scatter(times/(60*60*24), diff2[:,0], zorder=5, label='ΔX')
+    ax.scatter(times/(60*60*24), diff2[:,1], zorder=5, label='ΔY')
+    ax.scatter(times/(60*60*24), diff2[:,2], zorder=5, label='ΔZ')
     plt.title("Difference: J2000 - Earth-Centered Sun Frame (1 Day)") 
     ax.set_xlabel("Time [days from start]")
     ax.set_ylabel("Difference (km)")
