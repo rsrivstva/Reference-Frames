@@ -21,7 +21,7 @@ def main():
     print("Starting Main Function")
     initial_position = np.array([7000,0,0])
     initial_velocity = np.array([0, 7.72, 5])
-    integration_time = 24*60*60*30
+    integration_time = 24*60*60*365*4
     integration_steps = 1000
     init_epic="Jan 1, 2000"
 
@@ -66,6 +66,9 @@ def main():
     # Rotate every state along trajectory
     em_j2000 = np.zeros((len(times), 3))
     ev_j2000 = np.zeros((len(times), 3))
+
+    em_ra = np.zeros((len(times), 1))
+    em_dec = np.zeros((len(times), 1))
     for i in range(len(times)):
         current_epoch = et + times[i]
         rse, _ = spice.spkpos('Earth', current_epoch, 'J2000', 'LT', 'Sun')
@@ -78,6 +81,15 @@ def main():
         em_j2000[i, :] = rot_mat @ em_sun_centered
         ev_j2000[i, :] = rot_mat @ ev_sun_centered
         # Final result is Earth -> Mars vector in the J2000 frame
+        phi = np.atan(em_j2000[i,1]/em_j2000[i,0])
+        if em_j2000[i,0] >= 0 and em_j2000[i,1] >= 0:
+            em_ra[i] = phi
+        elif em_j2000[i,0] >= 0 and em_j2000[i,1] <= 0:
+            em_ra[i] = phi + 2*np.pi
+        elif em_j2000[i,0] < 0:
+            em_ra[i] = phi + np.pi
+        r_tilde = np.linalg.norm([em_j2000[i,0], em_j2000[i,1]])
+        em_dec[i] = np.atan(em_j2000[i,2]/r_tilde)
   
     # Plot it
     fig = plt.figure()
@@ -154,6 +166,17 @@ def main():
     plt.title("Difference: J2000 - Earth-Centered Sun Frame (1 Day)") 
     ax.set_xlabel("Time [days from start]")
     ax.set_ylabel("Difference (km)")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+
+    fig = plt.figure()
+    ax = plt.axes()
+    ax.scatter(times/(60*60*24), em_ra, zorder=5, label='RA')
+    ax.scatter(times/(60*60*24), em_dec, zorder=5, label='DEC')
+    plt.title("Earth-Mars right Ascension and Declination") 
+    ax.set_xlabel("Time [days from start]")
+    ax.set_ylabel("Angle [radians]")
     ax.legend()
     ax.grid(True)
     plt.show()
